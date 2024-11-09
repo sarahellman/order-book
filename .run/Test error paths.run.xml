@@ -1,0 +1,21 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Test error paths" type="JUnit" factoryName="JUnit">
+    <module name="order-book" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.example.orderbook.api.exceptionhandling.OrderExceptionHandler" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="ALTERNATIVE_JRE_PATH" value="openjdk-23" />
+    <option name="PACKAGE_NAME" value="com.example.orderbook.api" />
+    <option name="MAIN_CLASS_NAME" value="com.example.orderbook.api.OrderControllerTest" />
+    <option name="METHOD_NAME" value="givenOrderExists_whenGetOrderById_thenReturnOrder" />
+    <option name="TEST_OBJECT" value="tags" />
+    <tag value="error-path" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
