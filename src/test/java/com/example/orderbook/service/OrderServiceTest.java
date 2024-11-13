@@ -1,5 +1,6 @@
 package com.example.orderbook.service;
 
+import com.example.orderbook.api.exceptionhandling.SuspiciousDeviationException;
 import com.example.orderbook.api.exceptionhandling.TickerNotFoundException;
 import com.example.orderbook.repository.OrderRepository;
 import com.example.orderbook.service.entity.OrderEntity;
@@ -86,6 +87,7 @@ public class OrderServiceTest {
                 .currency(order.getCurrency())
                 .build();
 
+        when(orderRepository.getAllOrdersByTickerAndOrderSideAndDate("TSLA", BUY, LocalDate.now())).thenReturn(List.of(order));
         when(orderRepository.save(any(OrderEntity.class))).thenReturn(mockedResponse);
 
         OrderEntity result = orderService.saveNewOrder(order);
@@ -177,5 +179,70 @@ public class OrderServiceTest {
         });
 
         assertEquals("The requested ticker could not be found for the given date", exception.getMessage());
+    }
+
+    @Test
+    @Tag("error-path")
+    @DisplayName("Verify that isWithinTenPercentRange returns false when price is too low")
+    public void givenTooLowPrice_whenIsWithinTenPercentRange_thenReturnFalse() {
+        double avg = 100.0;
+
+        assertFalse(orderService.isWithinTenPercentRange(89.0, avg));
+    }
+
+    @Test
+    @Tag("happy-path")
+    @DisplayName("Verify that isWithinTenPercentRange returns true when price is within 10% range")
+    public void givenPriceWithin10PercentRange_whenIsWithinTenPercentRange_thenReturnTrue() {
+        double avg = 100.0;
+
+        assertTrue(orderService.isWithinTenPercentRange(100.0, avg));
+    }
+
+    @Test
+    @Tag("error-path")
+    @DisplayName("Verify that isWithinTenPercentRange returns false when price is too high")
+    public void givenPriceTooHigh_whenIsWithinTenPercentRange_thenReturnFalse() {
+        double avg = 100.0;
+
+        assertFalse(orderService.isWithinTenPercentRange(111.0, avg));
+    }
+
+    @Test
+    @Tag("happy-path")
+    @DisplayName("Verify that isWithinTenPercentRange returns true when avg is 0")
+    public void givenTheFirstOrderOfTheDay_whenAvgIsZero_thenReturnTrue() {
+        double avg = 0;
+
+        assertTrue(orderService.isWithinTenPercentRange(111.0, avg));
+    }
+
+    @Test
+    @Tag("error-path")
+    @DisplayName("Verify that SuspiciousDeviationException is thrown when the price deviates more than 10% from the daily average")
+    public void givenOrderWithSuspiciousDeviation_whenSaveNewOrder_thenThrowSuspiciousDeviationException() {
+        OrderEntity orderToCalculateAverage = OrderEntity.builder()
+                .ticker("TSLA")
+                .orderSide(BUY)
+                .volume(100L)
+                .price(10000.0)
+                .currency("USD")
+                .build();
+
+        OrderEntity order = OrderEntity.builder()
+                .ticker("TSLA")
+                .orderSide(BUY)
+                .volume(100L)
+                .price(1000.0)
+                .currency("USD")
+                .build();
+
+        when(orderRepository.getAllOrdersByTickerAndOrderSideAndDate("TSLA", BUY, LocalDate.now())).thenReturn(List.of(orderToCalculateAverage));
+
+        SuspiciousDeviationException exception = assertThrows(SuspiciousDeviationException.class, () -> {
+            orderService.saveNewOrder(order);
+        });
+
+        assertEquals("The price deviates more than 10% from the daily average.", exception.getMessage());
     }
 }

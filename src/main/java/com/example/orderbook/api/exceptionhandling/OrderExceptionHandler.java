@@ -97,4 +97,22 @@ public class OrderExceptionHandler {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(errorResponse);
     }
+
+    @ExceptionHandler(SuspiciousDeviationException.class)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "400", description = "The order price deviated too much from the daily average price",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<ErrorResponse> handleSuspiciousDeviationException(SuspiciousDeviationException exception) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status("ERROR")
+                .message(exception.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(errorResponse);
+    }
 }

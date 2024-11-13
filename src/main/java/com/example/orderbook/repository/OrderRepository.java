@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     List<OrderEntity> getAllOrdersByTickerAndDate(String ticker, LocalDate date);
+    List<OrderEntity> getAllOrdersByTickerAndOrderSideAndDate(String ticker, String orderSide, LocalDate date);
 }

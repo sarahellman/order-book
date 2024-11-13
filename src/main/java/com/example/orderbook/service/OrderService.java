@@ -1,5 +1,6 @@
 package com.example.orderbook.service;
 
+import com.example.orderbook.api.exceptionhandling.SuspiciousDeviationException;
 import com.example.orderbook.api.exceptionhandling.TickerNotFoundException;
 import com.example.orderbook.repository.OrderRepository;
 import com.example.orderbook.service.entity.BuySummary;
@@ -25,13 +26,49 @@ public class OrderService {
 
     /**
      * Save a new order
+     *
      * @param OrderEntity the object sent in from client
-     * setting the order date to the current date
+     *                    setting the order date to the current date
      * @return OrderEntity, now enriched with date and id
      */
     public OrderEntity saveNewOrder(OrderEntity order) {
-        order.setDate(LocalDate.now());
-        return orderRepository.save(order);
+        if (acceptableDeviation(order)) {
+            order.setDate(LocalDate.now());
+            return orderRepository.save(order);
+        } else {
+            throw new SuspiciousDeviationException("The price deviates more than 10% from the daily average.");
+        }
+    }
+
+    private boolean acceptableDeviation(OrderEntity order) {
+        LocalDate date = LocalDate.now();
+
+        // get all relevant orders for the day (ticker, order side, date)
+        List<OrderEntity> orderEntities = getAllOrders(order.getTicker(), order.getOrderSide(), date);
+
+        // calculate average price for the day
+        double avg = orderEntities.stream().mapToDouble(OrderEntity::getPrice).average().orElse(0);
+
+        return isWithinTenPercentRange(order.getPrice(), avg);
+    }
+
+    public boolean isWithinTenPercentRange(double price, double avg) {
+        double lowerLimit = avg * 0.90;
+        double upperLimit = avg * 1.10;
+        // if the price is within the 10% range, the order is OK
+        if(lowerLimit <= price && price <= upperLimit) {
+            return true;
+        } else if(avg == 0) {
+            // if this is the first order of the day, we should not block it
+            return true;
+        } else {
+            // if the price is outside the 10% range, the order is deemed suspicious and should be sent for screening
+            return false;
+        }
+    }
+
+    private List<OrderEntity> getAllOrders(String ticker, String orderSide, LocalDate date) {
+        return orderRepository.getAllOrdersByTickerAndOrderSideAndDate(ticker, orderSide, date);
     }
 
     public Optional<OrderEntity> getOrderById(Long id) {
@@ -41,14 +78,15 @@ public class OrderService {
     /**
      * Calculate the lowest, average and maximum orders for both selling and buying
      * Made the assumption that orders are not realized trades, so the summary is done for buy and sell separately
+     *
      * @param ticker the stock to calculate a summary for
-     * @param date defines the scope of the summary
+     * @param date   defines the scope of the summary
      * @return SummaryResponse containing the calculated values
      */
     public SummaryResponse getSummary(String ticker, LocalDate date) {
         List<OrderEntity> orderEntities = orderRepository.getAllOrdersByTickerAndDate(ticker, date);
 
-        if(orderEntities.isEmpty()) {
+        if (orderEntities.isEmpty()) {
             log.error("No orders found for ticker: {} on date: {}", ticker, date);
             throw new TickerNotFoundException("The requested ticker could not be found for the given date");
         } else {
